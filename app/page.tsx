@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import toast from "react-hot-toast";
 
 export default function Home() {
   const [images, setImages] = useState<File[]>([]);
@@ -11,6 +12,53 @@ export default function Home() {
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       setImages(filesArray);
+    }
+  };
+
+  const roastImages = async () => {
+    setIsRoasting(true);
+
+    // Convert images to base64 strings for the backend
+    const imagePromises = images.map((file) => {
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const imageBase64Strings = await Promise.all(imagePromises);
+
+    const payload = { images: imageBase64Strings };
+
+    console.log(payload);
+
+    try {
+      const response = await fetch("/api/roast", {
+        body: JSON.stringify(payload),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) throw new Error("Error generating audio");
+
+      toast.success("Roast generated successfully!");
+      const blob = await response.blob();
+      const downloadUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = downloadUrl;
+      link.setAttribute("download", "roast.mp3");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      toast.error("Something went wrong generating the roast!");
+      console.error(error);
+    } finally {
+      setIsRoasting(false);
     }
   };
 
@@ -70,9 +118,20 @@ export default function Home() {
         )}
 
         {/* Roast Me Button */}
-        <button className="bg-gradient-to-r from-[#FD297B] to-[#FF655B] text-white rounded-md px-4 py-3 text-xl mt-4">
-          Roast Me
-        </button>
+        <div>
+          <button
+            onClick={() => void roastImages()}
+            className="bg-gradient-to-r from-[#FD297B] to-[#FF655B] text-white rounded-md px-4 py-3 text-xl mt-4 disabled:opacity-50"
+            disabled={isRoasting || images.length === 0}
+          >
+            {isRoasting ? "Generating Roast..." : "Roast Me"}
+          </button>
+          {images.length === 0 && (
+            <p className="text-xs text-gray-500 mt-2">
+              You need to upload images to start the roast
+            </p>
+          )}
+        </div>
       </div>
     </main>
   );
