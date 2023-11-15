@@ -1,21 +1,28 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
 import toast from "react-hot-toast";
+import Header from "./components/Header";
+import ProfilePicturePreviews from "./components/ProfilePicturePreviews";
 
 export default function Home() {
+  // State for storing the selected images
   const [images, setImages] = useState<File[]>([]);
+  // State to indicate whether the 'roasting' process is ongoing
   const [isRoasting, setIsRoasting] = useState(false);
 
+  // Handles changes in the image input field
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
+      // Converts FileList to array and updates the state
       const filesArray = Array.from(e.target.files);
       setImages(filesArray);
     }
   };
 
+  // Function to process and 'roast' the images
   const roastImages = async () => {
+    // Indicate that roasting has started
     setIsRoasting(true);
 
     // Convert images to base64 strings for the backend
@@ -28,13 +35,14 @@ export default function Home() {
       });
     });
 
+    // Wait for all images to be converted
     const imageBase64Strings = await Promise.all(imagePromises);
 
+    // Prepare payload for API request
     const payload = { images: imageBase64Strings };
 
-    console.log(payload);
-
     try {
+      // API call to the 'roast' endpoint
       const response = await fetch("/api/roast", {
         body: JSON.stringify(payload),
         method: "POST",
@@ -43,8 +51,10 @@ export default function Home() {
         },
       });
 
+      // Error handling for unsuccessful response
       if (!response.ok) throw new Error("Error generating audio");
 
+      // Notify success and trigger file download
       toast.success("Roast generated successfully!");
       const blob = await response.blob();
       const downloadUrl = URL.createObjectURL(blob);
@@ -55,9 +65,11 @@ export default function Home() {
       link.click();
       document.body.removeChild(link);
     } catch (error) {
+      // Error handling and user notification
       toast.error("Something went wrong generating the roast!");
       console.error(error);
     } finally {
+      // Reset the roasting state
       setIsRoasting(false);
     }
   };
@@ -69,24 +81,7 @@ export default function Home() {
         className="bg-white rounded-lg p-6 text-center flex flex-col justify-between"
         style={{ height: "600px" }}
       >
-        {/* Header */}
-        <div className="flex flex-col items-center">
-          <div className="flex flex-row justify-center items-center">
-            <Image
-              className="w-[40px] h-[50px] mr-3"
-              src="/images/tinder-logo.png"
-              height={50}
-              width={40}
-              alt={"Tinder logo"}
-            />
-            <h1 className="text-3xl font-bold text-gray-600">
-              Tinder Profile Roaster
-            </h1>
-          </div>
-          <h2 className="text-xl mt-2 font-semibold text-gray-500">
-            Upload your profile pictures so AI can roast you!
-          </h2>
-        </div>
+        <Header />
 
         {/* Upload Area */}
         <label className="cursor-pointer">
@@ -103,19 +98,7 @@ export default function Home() {
           </div>
         </label>
 
-        {/* Image Previews */}
-        {images.length > 0 && (
-          <div className="flex flex-row justify-center">
-            {images.map((image, index) => (
-              <img
-                key={index}
-                src={URL.createObjectURL(image)}
-                alt={`preview-${index}`}
-                className="h-40 w-40 object-cover rounded-lg mr-2"
-              />
-            ))}
-          </div>
-        )}
+        <ProfilePicturePreviews images={images} />
 
         {/* Roast Me Button */}
         <div>
